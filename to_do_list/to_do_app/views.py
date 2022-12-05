@@ -1,26 +1,20 @@
-from django.shortcuts import render
 from django.shortcuts import render, redirect
 from .forms import NewUserForm
 from django.contrib import messages
 from django.contrib.auth.forms import AuthenticationForm
 from django.contrib.auth import login, authenticate, logout
 from .models import Task
-from rest_framework import status
-from rest_framework.response import Response
 from django.http import HttpResponse, JsonResponse
-from rest_framework.decorators import api_view
-from django.forms.models import model_to_dict
 from django.contrib.auth.decorators import login_required
 from django.views.decorators.csrf import csrf_exempt
-from django.core import serializers
 from django.contrib.auth.forms import PasswordResetForm
 from django.utils.http import urlsafe_base64_encode
 from django.contrib.auth.tokens import default_token_generator
 from django.utils.encoding import force_bytes
 from django.contrib.auth.models import User
 from django.template.loader import render_to_string
-from django.db.models.query_utils import Q
 from django.core.mail import send_mail, BadHeaderError
+from .serializers import TaskSerializer
 
 
 def index(request):
@@ -32,7 +26,6 @@ def register_request(request):
         form = NewUserForm(request.POST)
         if form.is_valid():
             form.save()
-            # login(request, user)
             fname = form.cleaned_data.get('first_name')
             messages.add_message(
                 request, messages.SUCCESS,
@@ -68,7 +61,7 @@ def password_reset_request(request):
         password_reset_form = PasswordResetForm(request.POST)
         if password_reset_form.is_valid():
             data = password_reset_form.cleaned_data['email']
-            associated_users = User.objects.filter(Q(email=data))
+            associated_users = User.objects.filter(email=data)
             if associated_users.exists():
                 for user in associated_users:
                     subject = "Password Reset Requested"
@@ -113,117 +106,160 @@ def completed_tasks(request):
 @login_required
 def add_new_task(request):
     '''Adds a New Task to the Task Table in Database.'''
-    if request.method == 'POST':
-        post_data = request.POST
-        task_name = post_data.get('task_title')
-        user = request.user
-        task_obj = Task.objects.create(task_title=task_name, author=user)
-        task_json_string = model_to_dict(task_obj, fields=['id', 'task_title', 'author'])
-        return JsonResponse(task_json_string)
-    else:
-        return HttpResponse("Request method is not GET.")
+    ret_data = {
+        'success': False,
+        'msg': 'Error in saving task'
+    }
+    try:
+        if request.method == 'POST':
+            post_data = request.POST
+            task_name = post_data.get('task_title')
+            user = request.user
+            Task.objects.create(task_title=task_name, author=user)
+            ret_data['success'] = True
+            ret_data['msg'] = 'Task successfully saved'
+        else:
+            ret_data['msg'] = 'Request method is not GET.'
+    except Exception as e:
+        print(e.args)
+    return JsonResponse(ret_data)
 
 
 @csrf_exempt
 @login_required
 def refresh_data(request):
     '''Returns the updated data after every AJAX Call.'''
-    if request.method == 'POST':
-        # Getting the username of the User requested
-        user = request.user
-        # Converting the user's tasks to JSON format
-        data = serializers.serialize("json", user.task_set.all())
-        # Return the JSON string. Will work only if safe is set to 'False'
-        print("data ", data)
-        return JsonResponse(data, safe=False)
-    else:
-        return HttpResponse('Request Method is not POST.')
+    ret_data = {
+        'success': False,
+        'msg': 'Error in getting task data',
+        'data': []
+    }
+    try:
+        if request.method == 'POST':
+            # Getting the user object of the User requested
+            user = request.user
+            task_obj = Task.objects.filter(author=user)
+            serializer = TaskSerializer(task_obj, many=True)
+            data = serializer.data
+            ret_data['success'] = True
+            ret_data['msg'] = 'Task successfully saved'
+            ret_data['data'] = data
+        else:
+            ret_data['msg'] = 'Request Method is not POST.'
+    except Exception as e:
+        print(e.args)
+    return JsonResponse(ret_data)
+
 
 
 @csrf_exempt
 @login_required
 def move_tasks(request):
     ''' Function to move the tasks from Active Table to Complete Table'''
-    if request.method == 'POST':
-        # Gets the Task's ID from the checkbox that is clicked
-        task_id = request.POST['task_id']
-        # Gets the Task's Class name from the checkbox that is clicked
-        task_class = request.POST['task_state']
-        # If the Clicked Task is an Active Task - Move it from Active Table to Complete Table
-        if 'mark_as_done' in task_class:
-            # Select the Task whose id matches with task_id
-            done_task = Task.objects.get(pk=task_id)
-            print("**********done task ", done_task)
-            # Update the 'is_checked' attribute to True. i.e, Mark as Done
-            done_task.is_checked = True
-            # if object in done_task:
-            done_task.save()
-
-        # If the Clicked Task is a Complete Task - Move it from Complete Table to Active Table
+    ret_data = {
+        'success': False,
+        'msg': 'Error in moving task'
+    }
+    try:
+        if request.method == 'POST':
+            # Gets the Task's ID from the checkbox that is clicked
+            task_id = request.POST['task_id']
+            # Gets the Task's Class name from the checkbox that is clicked
+            task_state = request.POST['task_state']
+            if task_id and task_state:
+                is_checked = False
+                if task_state == 'true':
+                    is_checked = True
+                # If the Clicked Task is an Active Task - Move it from Active Table to Complete Table
+                # Select the Task whose id matches with task_id
+                done_task = Task.objects.get(pk=task_id)
+                # Update the 'is_checked' attribute to True. i.e, Mark as Done
+                done_task.is_checked = is_checked
+                # if object in done_task:
+                done_task.save()
+                ret_data['success'] = True
+                ret_data['msg'] = 'Task successfully moved'
+            else:
+                ret_data['msg'] = 'Required parameter not present. Please contact admin'
         else:
-            # Select the task matching with the task_id
-            undone_task = Task.objects.get(pk=task_id)
-            print("**********undone task ", undone_task)
-            # Update the 'is_checked' attribute to 'False' i.e, Mark as Undone
-            undone_task.is_checked = False
-            # Save the changes to the Database
-            undone_task.save()
-
-        return HttpResponse("Success!")
-    else:
-        return HttpResponse("Request method is not GET.")
-
+            ret_data['msg'] = 'Request Method is not GET.'
+    except Exception as e:
+        print(e.args)
+    return JsonResponse(ret_data)
 
 @csrf_exempt
 @login_required
 def delete_task(request):
     '''Deletes a task from the Task Table.'''
-    if request.method == 'POST':
-        # Getting the task_id from AJAX
-        task_id = request.POST['task_id']
-        # Selecting the task with the given task_id
-        del_task = Task.objects.get(id=task_id)
-        # Deleting the task from the Table
-        del_task.delete()
-        print(f'Deleted the Task with ID: {task_id}')
-        return HttpResponse("Deleted the Task")
-    else:
-        return HttpResponse("Request method is not POST.")
+    ret_data = {
+        'success': False,
+        'msg': 'Error in Deleting task'
+    }
+    try:
+        if request.method == 'POST':
+            # Getting the task_id from AJAX
+            task_id = request.POST['task_id']
+            # Selecting the task with the given task_id
+            Task.objects.filter(id=task_id).delete()
+            # Deleting the task from the Table
+            ret_data['success'] = True
+            ret_data['msg'] = f'Deleted the Task with ID: {task_id}'
+        else:
+            ret_data['msg'] = 'Request Method is not POST.'
+    except Exception as e:
+        print(e.args)
+    return JsonResponse(ret_data)
+
 
 @csrf_exempt
 @login_required
 def delete_all_completed_tasks(request):
     '''Deletes all the Completed tasks from the Completed Table'''
-    if request.method == 'POST':
-        # Getting the Tasks that are Marked as Completed - i.e, Tasks that have is_checked == 1
-        del_tasks = Task.objects.filter(is_checked=1)
-        # Deleting the Completed Tasks
-        del_tasks.delete()
-        # print('Deleted all Completed Tasks')
-        return HttpResponse("Successfully Deleted all Completed Tasks")
-    else:
-        return HttpResponse("Request is not POST.")
+    ret_data = {
+        'success': False,
+        'msg': 'Error in Deleting all task'
+    }
+    try:
+        if request.method == 'POST':
+            # Getting the Tasks that are Marked as Completed - i.e, Tasks that have is_checked == 1
+            # Deleting the Completed Tasks
+            Task.objects.filter(is_checked=1).delete()
+            ret_data['success'] = True
+            ret_data['msg'] = "Successfully Deleted all Completed Tasks"
+        else:
+            ret_data['msg'] = "Request is not POST."
+    except Exception as e:
+        print(e.args)
+    return JsonResponse(ret_data)
 
 
 @csrf_exempt
 @login_required
 def update_task(request):
     '''Updates the task'''
-    if request.method == 'POST':
-        # Getting the Task ID of the task to be updated from AJAX Call
-        task_id = request.POST['task_id']
-        # Getting the modified Task name from AJAX Call
-        new_task = request.POST['task_name']
-        # Querying the Task model to get the task based on task_id
-        changed_task = Task.objects.get(id=task_id)
-        # Updating the Task Name with the NEW Value
-        changed_task.task_title = new_task.strip()
-        # Saving the changes to the Database
-        changed_task.save()
-        # For Debugging Purpose
-        print(f'Task Updated ID: {task_id}')
-        return HttpResponse("Successfully Updated Tasks")
-    else:
-        return HttpResponse('Request is not POST.')
+    ret_data = {
+        'success': False,
+        'msg': 'Error in updating task'
+    }
+    try:
+        if request.method == 'POST':
+            # Getting the Task ID of the task to be updated from AJAX Call
+            task_id = request.POST['task_id']
+            # Getting the modified Task name from AJAX Call
+            new_task = request.POST['task_name']
+            # Querying the Task model to get the task based on task_id
+            changed_task = Task.objects.get(id=task_id)
+            # Updating the Task Name with the NEW Value
+            changed_task.task_title = new_task.strip()
+            # Saving the changes to the Database
+            changed_task.save()
+            # For Debugging Purpose
+            ret_data['success'] = True
+            ret_data['msg'] = f'Successfully Task Updated ID: {task_id}'
+        else:
+            ret_data['msg'] = 'Request is not POST.'
+    except Exception as e:
+        print(e.args)
+    return JsonResponse(ret_data)
 
 
