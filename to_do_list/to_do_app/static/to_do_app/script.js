@@ -47,7 +47,7 @@ $(document).ready(function () {
                         var active_row = `<tr class="task_` + task_id + `">
                             <td><input type="checkbox" title="Mark as Complete" class="mark_as_done"
                                     id="`+ task_id + `"></td>
-                            <td colspan="2">
+                            <td colspan="3">
                                 <h5 class="text-left" id="title'+ task_id +'">` + task_title + `</h5>
                             </td>
                             <td colspan="1">
@@ -57,7 +57,7 @@ $(document).ready(function () {
                                 <i class="fa fa-check update_task_btn hand-pointer" title="Update"
                                     style="color: rgb(16, 172, 211); display: none;"></i>
                                 <i class="fa fa-trash deleterow delete_existing_row hand-pointer" title="Delete Task"
-                                    style="color:red; float:right;"></i>
+                                    style="color:red; padding-left: 10px;"></i>
                         </tr>`;
                         $('#maintable tbody').append(active_row);
 

@@ -26,8 +26,10 @@
   </head>
  <body>
 <!--Navbar-->
-<nav class="navbar navbar-expand-lg navbar-light bg-light">
-  <a class="navbar-brand" href="#">To Do Application</a>
+<nav class="navbar navbar-expand-lg navbar-light bg-9595d7">
+  <i class="fa fa-tasks task-sym" aria-hidden="true"></i>
+  <a class="navbar-brand main-txt" href="#">To Do</a>
+
   <button class="navbar-toggler" type="button" data-toggle="collapse" data-target="#navbarText" aria-controls="navbarText" aria-expanded="False" aria-label="Toggle navigation">
     <span class="navbar-toggler-icon"></span>
   </button>
@@ -37,22 +39,22 @@
 
 
       <li class="nav-item">
-        <a class="nav-link" href="#">Welcome {{user.first_name}} {{user.last_name}}</a>
+        <a class="nav-link f-w-700" href="#">Welcome {{user.first_name}} {{user.last_name}}</a>
       </li>
       <li class="nav-item">
-        <a class="nav-link" href="/active_tasks">Active Tasks</a>
+        <a class="nav-link f-w-700" href="/active_tasks">Active Tasks</a>
       </li>
       <li class="nav-item">
-        <a class="nav-link" href="/completed_tasks">Completed Tasks</a>
+        <a class="nav-link f-w-700" href="/completed_tasks">Completed Tasks</a>
       </li>
       <li class="nav-item">
-        <a class="nav-link" href="/logout">Logout</a>
+        <a class="nav-link f-w-700" href="/logout">Logout</a>
       </li>
 
       {% else %}
 
       <li class="nav-item">
-        <a class="nav-link" href="/login">Login</a>
+        <a class="nav-link f-w-700" href="/login">Login</a>
       </li>
 
       {% endif %}

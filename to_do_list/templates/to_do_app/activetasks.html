@@ -5,7 +5,7 @@
 
 	<table class="table table-hover" id="maintable">
 		<thead class="thead-dark">
-			<th colspan=4>
+			<th colspan=6>
 				<h3 class="active_heading">Active Tasks</h3>
 			</th>
 		</thead>
@@ -13,7 +13,7 @@
 		<tbody>
 			<form>
 				<tr>
-					<td colspan=3>
+					<td colspan=5>
 						<input type="text" name="task" style="float: left;" class="form-control" id="add_task"
 							placeholder="Enter your Task (Max. 60 characters)" maxlength="60" autofocus>
 					</td>
@@ -29,7 +29,7 @@
             <tr class="task_{{ task.id }}">
 				<td><input type="checkbox" title="Mark as Complete" class="mark_as_done"
 						id="{{ task.id }}"></td>
-				<td colspan="2">
+				<td colspan="3">
 					<h5 class="text-left" id="title{{ task.id }}">{{ task.task_title }}</h5>
 				</td>
 				<td colspan="1">
@@ -41,7 +41,7 @@
 					<i class="fa fa-check update_task_btn hand-pointer" title="Update"
 						style="color: rgb(16, 172, 211); display: none;"></i>
 					<i class="fa fa-trash deleterow delete_existing_row hand-pointer" title="Delete Task"
-						style='color:red; float:right;'></i>
+						style='color:red; padding-left: 10px;'></i>
 				</td>
 
 			</tr>

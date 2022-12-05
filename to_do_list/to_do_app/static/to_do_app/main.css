@@ -1,3 +1,18 @@
 .hand-pointer{
     cursor: pointer
 }
+.main-txt{
+    font-size: 35px;
+    font-weight: 700;
+}
+.bg-9595d7{
+    background-color: #9595d7;
+}
+.task-sym{
+    font-size: 30px;
+    padding-top: 10px;
+    padding-right: 10px;
+}
+.f-w-700{
+    font-weight: 700;
+}
