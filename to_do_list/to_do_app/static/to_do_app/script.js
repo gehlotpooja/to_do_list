@@ -183,5 +183,116 @@ $(document).ready(function () {
 
     });
 
+    /* Deletes the selected row */
+    $(document).on("click", ".delete_existing_row, .delete_new_row", function () {
+        // If the delete button of new row is clicked, then delete that row
+        if ($(this).hasClass('delete_new_row')) {
+            $(this).parent().parent().remove();
+        }
+        // If the delete button of existing row is clicked, Delete that task from DB and delete if from table as well
+        else {
+            // Gets the ID of the Task i.e Checkbox
+            var val = $(this).parent().parent().find('input').attr("id");
+            var c = confirm('Are you sure you want to delete this task ?');
+            if (c == true) {
+                // AJAX Call - Will pass the task_id to be deleted to the delete_task view and upon success will remove the same from the Active task table
+                $.ajax(
+                    {
+                        type: "POST",
+                        url: "/delete_task/",
+                        cache: false,
+                        data: {
+                            task_id: val,
+                        },
+                        success: function () {
+                            refreshData();
+                        }
+                    });
+            }
+        }
+
+    });
+
+    /* Editing the Tasks and Updating the Task in the Database using Ajax */
+    $(document).on("click", ".update_btns", function () {
+        // Storing the previous taskname in the upd_task_prev global variable
+        upd_task_prev = $(this).parent().parent().find('h4').text().trim();
+        //upd_task_prev = upd_task_prev.replace(/"/g, '\\"');
+        // Turning the task field to an input field with its current value
+        var edit_field = '<input type="text" name="task" style="float: left;" class="form-control" id= "add_task" maxlength="60" value="' + upd_task_prev.replace(/"/g, '&quot;') + '" autofocus>';
+        $(this).parent().parent().find('td:eq(1)').html(edit_field);
+        $(this).hide();
+        $(this).siblings('.update_task_btn').show();
+    });
+
+    $(document).on("click", ".update_task_btn", function () {
+        $(this).hide()
+        $(this).siblings('.update_btns').show();
+        // Getting the new task name
+        var upd_task_current = $(this).parent().parent().find('td:eq(1)').find('input').val().trim();
+        // Getting the edited task id
+        var upd_id = $(this).parent().parent().find('td:eq(0)').find('input').attr('id');
+        /*
+        If the previous task is same as the current task. Do not sent any Ajax request to backend.
+        Just update that table data with the previous/current task name.
+        Else, send the ajax request and update that data with the newly updated task name.
+        */
+
+        if (upd_task_current == upd_task_prev && upd_task_current.length > 0) {
+            //alert('Equal. No AJAX request.');
+            var upd_field = '<h4 class="text-left" id="title' + upd_id + '">' + upd_task_current + '</h4>';
+            $('.task_' + upd_id).find('td:eq(1)').html(upd_field);
+        }
+
+        else {
+            //alert('Not Equal. Sending Ajax request');
+            if (upd_task_current.length == 0) {
+                alert('Task Name cannot be Empty!');
+                var upd_field = '<h4 class="text-left" id="title' + upd_id + '">' + upd_task_prev + '</h4>';
+                $('.task_' + upd_id).find('td:eq(1)').html(upd_field);
+            }
+            else {
+                //console.log('Sending AJAX Request.');
+                $.ajax({
+                    type: 'POST',
+                    url: '/update_task/',
+                    cache: false,
+                    data: {
+                        task_id: upd_id,
+                        task_name: upd_task_current,
+                    },
+                    success: function () {
+                        var upd_field = '<h4 class="text-left" id="title' + upd_id + '">' + upd_task_current + '</h4>';
+                        $('.task_' + upd_id).find('td:eq(1)').html(upd_field);
+
+                    }
+                });
+            }
+        }
+    });
+
+    /* Deletes all the Completed Tasks */
+    $("#completed-table").on('click', '#clear_all_completed_tasks', function () {
+        // Checks if the Number of rows in Completed Table. If less than or equal to 2 then alerts the user with appropriate message
+        // Else Deletes all the Completed Tasks
+        if ($('#completed-table tr').length <= 2) {
+            alert('No Completed Tasks to Clear!');
+        }
+        else {
+            var cd = confirm('Are you sure you want to delete all completed tasks ?');
+            if (cd == true) {
+                $.ajax(
+                    {
+                        type: "POST",
+                        url: "/delete_all_completed_tasks/",
+                        data: {},
+                        success: function () {
+                            refreshData();
+                        }
+                    });
+            }
+        }
+    });
+
 
 });

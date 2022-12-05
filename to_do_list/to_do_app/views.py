@@ -63,6 +63,38 @@ def login_request(request):
     return render(request=request, template_name="to_do_app/login.html", context={"login_form": form})
 
 
+def password_reset_request(request):
+    if request.method == "POST":
+        password_reset_form = PasswordResetForm(request.POST)
+        if password_reset_form.is_valid():
+            data = password_reset_form.cleaned_data['email']
+            associated_users = User.objects.filter(Q(email=data))
+            if associated_users.exists():
+                for user in associated_users:
+                    subject = "Password Reset Requested"
+                    email_template_name = "to_do_app/password_reset_email.txt"
+                    c = {
+                        "email": user.email,
+                        'domain': '127.0.0.1:9000',
+                        'site_name': 'Website',
+                        "uid": urlsafe_base64_encode(force_bytes(user.pk)),
+                        'token': default_token_generator.make_token(user),
+                        'protocol': 'http',
+                    }
+                    email = render_to_string(email_template_name, c)
+                    try:
+                        send_mail(subject, email, 'admin@example.com', [user.email], fail_silently=False)
+                    except BadHeaderError:
+
+                        return HttpResponse('Invalid header found.')
+
+                    messages.success(request, 'A message with reset password instructions has been sent to your inbox.')
+                    return redirect("index")
+    password_reset_form = PasswordResetForm()
+    return render(request=request, template_name="to_do_app/password_reset.html",
+                  context={"password_reset_form": password_reset_form})
+
+
 def logout_request(request):
     logout(request)
     messages.info(request, "You have successfully logged out.")
@@ -172,34 +204,26 @@ def delete_all_completed_tasks(request):
     else:
         return HttpResponse("Request is not POST.")
 
-def password_reset_request(request):
-    if request.method == "POST":
-        password_reset_form = PasswordResetForm(request.POST)
-        if password_reset_form.is_valid():
-            data = password_reset_form.cleaned_data['email']
-            associated_users = User.objects.filter(Q(email=data))
-            if associated_users.exists():
-                for user in associated_users:
-                    subject = "Password Reset Requested"
-                    email_template_name = "to_do_app/password_reset_email.txt"
-                    c = {
-                        "email": user.email,
-                        'domain': '127.0.0.1:9000',
-                        'site_name': 'Website Name',
-                        "uid": urlsafe_base64_encode(force_bytes(user.pk)),
-                        'token': default_token_generator.make_token(user),
-                        'protocol': 'http',
-                    }
-                    email = render_to_string(email_template_name, c)
-                    try:
-                        send_mail(subject, email, 'AWS_verified_email_address', [user.email], fail_silently=False)
-                    except BadHeaderError:
 
-                        return HttpResponse('Invalid header found.')
+@csrf_exempt
+@login_required
+def update_task(request):
+    '''Updates the task'''
+    if request.method == 'POST':
+        # Getting the Task ID of the task to be updated from AJAX Call
+        task_id = request.POST['task_id']
+        # Getting the modified Task name from AJAX Call
+        new_task = request.POST['task_name']
+        # Querying the Task model to get the task based on task_id
+        changed_task = Task.objects.get(id=task_id)
+        # Updating the Task Name with the NEW Value
+        changed_task.task_title = new_task.strip()
+        # Saving the changes to the Database
+        changed_task.save()
+        # For Debugging Purpose
+        print(f'Task Updated ID: {task_id}')
+        return HttpResponse("Successfully Updated Tasks")
+    else:
+        return HttpResponse('Request is not POST.')
 
-                    messages.success(request, 'A message with reset password instructions has been sent to your inbox.')
-                    return redirect("index")
-            messages.error(request, 'An invalid email has been entered.')
-    password_reset_form = PasswordResetForm()
-    return render(request=request, template_name="to_do_app/password_reset.html",
-                  context={"password_reset_form": password_reset_form})
+
