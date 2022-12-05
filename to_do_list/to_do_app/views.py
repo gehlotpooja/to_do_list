@@ -13,6 +13,14 @@ from django.forms.models import model_to_dict
 from django.contrib.auth.decorators import login_required
 from django.views.decorators.csrf import csrf_exempt
 from django.core import serializers
+from django.contrib.auth.forms import PasswordResetForm
+from django.utils.http import urlsafe_base64_encode
+from django.contrib.auth.tokens import default_token_generator
+from django.utils.encoding import force_bytes
+from django.contrib.auth.models import User
+from django.template.loader import render_to_string
+from django.db.models.query_utils import Q
+from django.core.mail import send_mail, BadHeaderError
 
 
 def index(request):
@@ -64,8 +72,10 @@ def logout_request(request):
 def active_tasks(request):
     return render(request=request, template_name='to_do_app/activetasks.html')
 
+
 def completed_tasks(request):
     return render(request=request, template_name='to_do_app/completedtasks.html')
+
 
 @csrf_exempt
 @login_required
@@ -92,10 +102,11 @@ def refresh_data(request):
         # Converting the user's tasks to JSON format
         data = serializers.serialize("json", user.task_set.all())
         # Return the JSON string. Will work only if safe is set to 'False'
-        print("data ",data)
+        print("data ", data)
         return JsonResponse(data, safe=False)
     else:
         return HttpResponse('Request Method is not POST.')
+
 
 @csrf_exempt
 @login_required
@@ -146,3 +157,49 @@ def delete_task(request):
         return HttpResponse("Deleted the Task")
     else:
         return HttpResponse("Request method is not POST.")
+
+@csrf_exempt
+@login_required
+def delete_all_completed_tasks(request):
+    '''Deletes all the Completed tasks from the Completed Table'''
+    if request.method == 'POST':
+        # Getting the Tasks that are Marked as Completed - i.e, Tasks that have is_checked == 1
+        del_tasks = Task.objects.filter(is_checked=1)
+        # Deleting the Completed Tasks
+        del_tasks.delete()
+        # print('Deleted all Completed Tasks')
+        return HttpResponse("Successfully Deleted all Completed Tasks")
+    else:
+        return HttpResponse("Request is not POST.")
+
+def password_reset_request(request):
+    if request.method == "POST":
+        password_reset_form = PasswordResetForm(request.POST)
+        if password_reset_form.is_valid():
+            data = password_reset_form.cleaned_data['email']
+            associated_users = User.objects.filter(Q(email=data))
+            if associated_users.exists():
+                for user in associated_users:
+                    subject = "Password Reset Requested"
+                    email_template_name = "to_do_app/password_reset_email.txt"
+                    c = {
+                        "email": user.email,
+                        'domain': '127.0.0.1:9000',
+                        'site_name': 'Website Name',
+                        "uid": urlsafe_base64_encode(force_bytes(user.pk)),
+                        'token': default_token_generator.make_token(user),
+                        'protocol': 'http',
+                    }
+                    email = render_to_string(email_template_name, c)
+                    try:
+                        send_mail(subject, email, 'AWS_verified_email_address', [user.email], fail_silently=False)
+                    except BadHeaderError:
+
+                        return HttpResponse('Invalid header found.')
+
+                    messages.success(request, 'A message with reset password instructions has been sent to your inbox.')
+                    return redirect("index")
+            messages.error(request, 'An invalid email has been entered.')
+    password_reset_form = PasswordResetForm()
+    return render(request=request, template_name="to_do_app/password_reset.html",
+                  context={"password_reset_form": password_reset_form})
